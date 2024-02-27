@@ -1,0 +1,62 @@
+---
+title: "Intro to Quarto"
+format: html
+bibliography: references.bib
+---
+
+# Header 1
+
+## Header 2
+
+##### Header 5
+
+*this is italics*
+
+**this is bold**
+
+this will be a superscript ^2^
+
+this will be a subscript ~3~
+
+here we can create a bullet point list
+
+-   first bullet
+
+-   second bullet
+
+-   third bullet
+
+this will insert a URL in [this link](https://learning.nceas.ucsb.edu/2024-02-arctic/session_03.html)
+
+this is a very important citation [@oke2020]
+
+| title first | second   | Col3 |
+|-------------|----------|------|
+| thing 1     | detail 1 |      |
+| thing 2     | detail 2 |      |
+| thing 3     |          |      |
+
+```{r}
+x <- 4*8
+
+heights_ft<- c(5.2, 6.0, 5.7)
+
+heights_ft
+
+```
+
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+
+
+
+
+
