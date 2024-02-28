@@ -1,0 +1,108 @@
+---
+title: "Intro to Data Viz"
+format: html
+---
+
+## Set up
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(janitor)
+library(scales)
+library(leaflet)
+library(DT)
+```
+
+## Read Data
+```{r}
+escape_raw = read_csv("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/urn%3Auuid%3Af119a05b-bbe7-4aea-93c6-85434dcb1c5e")
+```
+
+## Exploring data
+```{r}
+#! eval: false
+
+colnames(escape_raw)
+glimpse(escape_raw)
+range(escape_raw$sampleDate)
+unique(escape_raw$Species)
+
+```
+
+## Cleaning data
+
+### Cleaning column names
+```{r}
+escape = escape_raw %>% 
+  clean_names()
+
+colnames(escape)
+```
+
+
+### calculate the annual escapements by species and sasap regions 
+```{r}
+annual_esc = escape %>% 
+  separate(sample_date, c("year", "month", "day"), sep = "-") %>% 
+  mutate(year = as.numeric(year)) %>% 
+  group_by(species, sasap_region, year) %>% 
+  summarise(escapement = sum(daily_count)) %>% 
+  filter(species %in% c("Chinook", "Sockeye", "Chum", "Coho", "Pink"))
+
+unique(annual_esc$species)
+```
+
+## Ploting data
+
+```{r}
+ggplot(data = annual_esc, 
+       mapping = aes(x = species, y = escapement, fill = sasap_region))+
+  geom_col()
+```
+
+```{r}
+annual_esc_2000 = annual_esc %>% 
+  filter (year %in% c(2000:2016))
+
+unique(annual_esc_2000$year)
+```
+
+```{r}
+ggplot(data = annual_esc_2000, 
+       mapping = aes(x = year, y = escapement, color = species))+
+  geom_line()+
+  geom_point()+
+  facet_wrap(~sasap_region, 
+             scales = "free_y")
+```
+
+# same plot, different customization
+```{r}
+ggplot(data = annual_esc_2000, 
+       mapping = aes(x = year, y = escapement, color = species))+
+  geom_line()+
+  geom_point()+
+  facet_wrap(~sasap_region, 
+             scales = "free_y")+
+  labs(title = "Annual Salmon Escapement by Region", 
+       y = "Escapement", x = "Year")+
+  theme_dark()+
+  theme(legend.position = "bottom",
+        legend.title = element_blank(), 
+        axis.text.x = element_text(angle = 45,
+                                     vjust = 0.5))+
+  scale_y_continuous(labels = comma)
+```
+
+```{r}
+ggsave("plots/annual_salmon_esc_region.jpg", width = 8, height = 6, units = "in")
+```
+
+
+
+
+
+
+
