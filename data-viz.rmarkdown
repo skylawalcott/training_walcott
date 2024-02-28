@@ -3,7 +3,9 @@ title: "Intro to Data Viz"
 format: html
 ---
 
+
 ## Set up
+
 ```{r}
 library(readr)
 library(dplyr)
@@ -15,12 +17,16 @@ library(leaflet)
 library(DT)
 ```
 
+
 ## Read Data
+
 ```{r}
 escape_raw = read_csv("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/urn%3Auuid%3Af119a05b-bbe7-4aea-93c6-85434dcb1c5e")
 ```
 
+
 ## Exploring data
+
 ```{r}
 #! eval: false
 
@@ -31,9 +37,11 @@ unique(escape_raw$Species)
 
 ```
 
+
 ## Cleaning data
 
 ### Cleaning column names
+
 ```{r}
 escape = escape_raw %>% 
   clean_names()
@@ -42,7 +50,9 @@ colnames(escape)
 ```
 
 
+
 ### calculate the annual escapements by species and sasap regions 
+
 ```{r}
 annual_esc = escape %>% 
   separate(sample_date, c("year", "month", "day"), sep = "-") %>% 
@@ -54,7 +64,9 @@ annual_esc = escape %>%
 unique(annual_esc$species)
 ```
 
+
 ## Ploting data
+
 
 ```{r}
 ggplot(data = annual_esc, 
@@ -78,7 +90,9 @@ ggplot(data = annual_esc_2000,
              scales = "free_y")
 ```
 
+
 # same plot, different customization
+
 ```{r}
 ggplot(data = annual_esc_2000, 
        mapping = aes(x = year, y = escapement, color = species))+
@@ -96,13 +110,17 @@ ggplot(data = annual_esc_2000,
   scale_y_continuous(labels = comma)
 ```
 
+
 ## saving plot
+
 ```{r}
 ggsave("plots/annual_salmon_esc_region.jpg", width = 8, height = 6, units = "in")
 ```
 
 
+
 ## Interactive visualization
+
 
 ```{r}
 location = escape %>%
@@ -110,13 +128,17 @@ location = escape %>%
   drop_na()
 ```
 
+
 using "DT" package for interactive tables
+
 
 ```{r}
 datatable(location)
 ```
 
+
 Use leaflet package to create an interactive map
+
 ```{r}
 leaflet(location) %>% 
   addTiles() %>% 
@@ -124,7 +146,6 @@ leaflet(location) %>%
              lat = ~latitude, 
              popup = ~location)
 ```
-
 
 ```{r}
 leaflet(location) %>%
@@ -148,20 +169,4 @@ leaflet(location) %>%
         opacity = 1
     )
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
