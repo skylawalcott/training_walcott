@@ -14,11 +14,13 @@ library(readr)
 ```
 
 ## Read in our data
+
 ```{r}
 catch_original = read_csv("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.302.1")
 ```
 
 ## Explore
+
 ```{r}
 # colnames(catch_original)
 
@@ -32,11 +34,13 @@ catch_original = read_csv("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df
 ```
 
 # Clean and reshape data
+
 ```{r}
 
 ```
 
 ## Using select() function
+
 ```{r}
 catch_data = catch_original %>% 
   select(Region, Year, Chinook, Sockeye, Coho, Pink, Chum)
@@ -48,6 +52,7 @@ head(catch_data)
 ```
 
 ## check column types
+
 ```{r}
 glimpse(catch_data)
 ```
@@ -78,8 +83,8 @@ catch_clean = catch_data %>%
 catch_clean[i,]
 ```
 
-
 ## Reshaping
+
 ```{r}
 catch_long = catch_clean %>% 
   pivot_longer(cols = -c(Region, Year), 
@@ -96,6 +101,7 @@ head(catch_wide)
 ```
 
 ## rename columns with rename()
+
 ```{r}
 catch_long = catch_long %>% 
   rename(catch_thousands = catch)
@@ -109,6 +115,7 @@ head(catch_long)
 ```
 
 ## Summary stats using group_by() and summarize()
+
 ```{r}
 # get average catch by region
 mean_region = catch_long %>% 
@@ -127,18 +134,19 @@ head(n_region)
 ```
 
 ## Filtering rows using the filter()
+
 ```{r}
 sse_catch = catch_long %>% 
   filter(Region == "SSE")
 head(sse_catch)
   
 ```
+
 ```{r}
 catch_million = catch_long %>% 
   filter(catch > 1000000)
 head(catch_million)
 ```
-
 
 ```{r}
 sse_chinook = catch_long %>% 
@@ -147,6 +155,7 @@ head(sse_chinook)
 ```
 
 ## Sorting data using arrange()
+
 ```{r}
 mean_region = catch_long %>% 
   group_by(Region) %>% 
@@ -161,8 +170,8 @@ mean_region = catch_long %>%
 head(mean_region)
 ```
 
-
 ## split and combine values in columns
+
 ```{r}
 sites_df = data.frame(site = c("HAW-101",
                                 "HAW-103",
@@ -175,7 +184,9 @@ split_df = sites_df %>%
   separate(site, c("island", "site_number"), "-")
 head(split_df)
 ```
+
 ## cities example
+
 ```{r}
 cities_df <- data.frame(city = c("Juneau AK",
                                  "Sitka AK",
@@ -199,8 +210,7 @@ dates_unite = date_df %>%
 head(dates_unite)
 ```
 
-
-## pull it all together! 
+## pull it all together!
 
 ```{r}
 catch_original <- read_csv(url("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.302.1", 
@@ -221,20 +231,3 @@ mean_region <- catch_original %>%
 head(mean_region)
 
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

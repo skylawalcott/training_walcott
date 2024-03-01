@@ -28,9 +28,10 @@ head(species, 3)
 
 ## grabbing data from ADC
 ```{r}
-adult_birds = read_csv("https://arcticdata.io/metacat/d1/mn/v2/object/urn%3Auuid%3Abf4f0c68-e4e9-49ae-8be4-487de8f7d10b")
-breeding_dates = read_csv("https://arcticdata.io/metacat/d1/mn/v2/object/urn%3Auuid%3A842a848e-fc5b-4cbe-8dc5-8ea252716e43")
-chick_banding = read_csv("https://arcticdata.io/metacat/d1/mn/v2/object/urn%3Auuid%3A7731b1f4-d6e5-4d9d-8259-fd822c2056ef")
+nest_data <-  read_csv("https://arcticdata.io/metacat/d1/mn/v2/object/urn%3Auuid%3A982bd2fc-4edf-4da7-96ef-0d11b853102d")
+predator_survey <- read_csv("https://arcticdata.io/metacat/d1/mn/v2/object/urn%3Auuid%3A9ffec04c-7e2d-41dd-9e88-b6c2e8c4375e")
+egg_measures <- read_csv("https://arcticdata.io/metacat/d1/mn/v2/object/urn%3Auuid%3A4b219711-2282-420a-b1d6-1893fe4a74a6")
+
 ```
 
 
@@ -38,17 +39,90 @@ chick_banding = read_csv("https://arcticdata.io/metacat/d1/mn/v2/object/urn%3Auu
 ```{r}
 #! eval: false
 
-colnames(adult_birds)
-glimpse(adult_birds)
-range(adult_birds$genetic_blood_capillary_tube)
-unique(adult_birds$genetic_blood_capillary_tube)
+colnames(predator_survey)
+glimpse(predator_survey)
+unique(predator_survey)
+summary(predator_survey)
 
 ```
 
+## translating species codes
+```{r}
+predator_comm_names <- left_join(predator_survey,
+                                 species,
+                                 by = c("species" = "alpha_code"))
+```
 
+## writing a function to add species name
+```{r}
+#' Adding Species Common Name to Data Frames
+#'
+#' @param df 
+#' @param species 
+#'
+#' @return species common name
+#' @export
+#'
+#' @examples
+pred_name = function(df, species){
+  result = left_join(df, species, by = c("species" = "alpha_code"))
+  return(result)
+}
+```
 
+## clean up species names 
+```{r}
+predator_clean <- pred_name(predator_survey, species) %>% 
+    select(year, site, date, common_name, count) %>% 
+    filter(!is.na(common_name))
 
+nest_location_clean <- pred_name(nest_data, species) %>% 
+    select(year, site, nestID, common_name, lat_corrected, long_corrected) %>% 
+    filter(!is.na(common_name))
 
+eggs_clean <- pred_name(egg_measures, species) %>% 
+    select(year, site, nestID, common_name, length, width) %>% 
+    filter(!is.na(common_name))
+```
+
+## working on if statements
+```{r}
+#' Function to add common name to data.frame according to the BBL list of species codes
+
+#' @param df A data frame containing BBL species codes in column `species`
+#' @param species A data frame defining BBL species codes with columns `alpha_code` and `common_name`
+#' @return A data frame with original data df, plus the common name of species
+
+assign_species_name <- function(df, species){
+    if (!("alpha_code" %in% names(species)) |
+        !("species" %in% names(df)) |
+        !("common_name" %in% names(species))){
+      stop("Tables appear to be formatted incorrectly.")
+    }  
+  
+    return_df <- left_join(df, species, by = c("species" = "alpha_code"))
+    
+    if (nrow(return_df) > nrow(df)){
+      warning("Joined table has more rows than original table. Check species table for duplicated code values.")
+    }
+    
+    if (length(which(is.na(return_df$common_name))) > 0){
+      x <- length(which(is.na(return_df$common_name)))
+      warning(paste("Common name has", x, "rows containing NA"))
+    }
+    
+    return(return_df)
+        
+}
+```
+
+## last check
+```{r}
+colnames(predator_survey)
+glimpse(predator_survey)
+unique(predator_survey)
+summary(predator_survey)
+```
 
 
 
