@@ -1,0 +1,289 @@
+---
+title: "Working with Spatial Data in R"
+format: html
+---
+
+## Download Data 
+```{r}
+knb_url <- "https://dev.nceas.ucsb.edu/knb/d1/mn/v2/object/urn%3Auuid%3Aaceaecb2-1ce0-4d41-a839-d3607d32bb58"
+
+download.file(url = knb_url, destfile = 'shapefile_demo_data.zip')
+
+unzip('shapefile_demo_data.zip', exdir = 'data')
+
+file.remove('shapefile_demo_data.zip')
+```
+
+## download packages
+```{r}
+library(readr)
+library(sf)
+library(ggplot2)
+library(leaflet)
+library(scales)
+library(ggspatial)
+library(dplyr)
+```
+
+## Read shapefile data
+```{r}
+ak_regions <- read_sf("data/ak_regions_simp.shp")
+
+plot(ak_regions)
+class(ak_regions)
+head(ak_regions)
+glimpse(ak_regions)
+```
+
+#Checking CRS of spatial data
+```{r}
+st_crs(ak_regions)
+# WGS 84 is not projected so that is why the maps are not ploted correctly. 
+```
+
+## transforming projection
+```{r}
+ak_regions_3338 <- ak_regions %>%
+    st_transform(crs = 3338) # this crs is the code for "AK Albers" projection style
+
+st_crs(ak_regions_3338)
+
+plot(ak_regions_3338)
+```
+
+## SF and Tidyverse
+
+Selecting region column
+```{r}
+ak_regions_3338 %>% 
+  select(region)
+```
+
+Filtering on region
+```{r}
+ak_regions_3338 %>%
+    filter(region == "southeast")
+```
+
+## Spatial joins
+
+Calculating the total population for each AK region
+
+```{r}
+# read in population data
+pop <- read_csv("data/alaska_population.csv")
+
+head(pop)
+class(pop)
+```
+
+2. Transforming pop into spatial object (since it does not have regional information currently)
+```{r}
+# pop data is in WSG 84 (code 4326)
+pop_4326 <- st_as_sf(pop,# the data we are transforming
+                     coords = c('lng', 'lat'),# the coordinate columns we want to transform
+                     crs = 4326, # coordinate code it is currently in
+                     remove = F) # dont remove my lat/lon columns 
+
+head(pop_4326)
+```
+
+3. Join population data with AK region
+```{r}
+pop_joined <- st_join(pop_4326, # first dataset to join
+                      ak_regions_3338, # second dataset to join
+                      join = st_within) # method by which to join
+
+# BUT THE PROJECTIONS DONT MATCH! We need to transform
+```
+
+Transforming CRS of pop data
+```{r}
+pop_3338 <- st_transform(pop_4326, # transforming this dataset
+                         crs = 3338) # new projection code
+
+# Now we can try and rejoin again
+pop_joined <- st_join(pop_3338, 
+                      ak_regions_3338, 
+                      join = st_within)
+
+head(pop_joined)
+```
+
+Calculating the total population of each AK region 
+```{r}
+pop_region <- pop_joined %>% # taking the joinded dataset and applying the following functions
+    as.data.frame() %>% # setting as a dataframe
+    group_by(region) %>% # do the following functions by region column
+    summarise(total_pop = sum(population)) # apply the summary equation to the region column
+
+head(pop_region) # normal dataframe, no more spatial information, so we need to do a normal join to get that info back! 
+```
+
+Include spatial information by joining to ak_regions_3338 (which has the correct projection)
+```{r}
+pop_region_3338 <- left_join(ak_regions_3338, # left join our spatial information 
+                             pop_region, # dataframe that has the population for each region
+                             by = "region") # join by the column region
+
+# plot to check
+plot(pop_region_3338["total_pop"]) # plotting the total pop column within the newly joined spatial dataset
+```
+
+Mapping by the management areas using column "mgmt_area"
+```{r}
+pop_mgmt_3338 <- pop_region_3338 %>% #using the dataframe pop_region_3338
+    group_by(mgmt_area) %>% # group by the column called mgmt_area
+    summarize(total_pop = sum(total_pop)) # sum by total population by mgmt area
+
+plot(pop_mgmt_3338["total_pop"])
+
+# but we still want to have the regions added
+pop_mgmt_3338 <- pop_region_3338 %>%
+    group_by(mgmt_area) %>%
+    summarize(total_pop = sum(total_pop), do_union = F)
+
+plot(pop_mgmt_3338["total_pop"])
+```
+
+lets save our spatial object! 
+```{r}
+write_sf(pop_region_3338, "data/ak_regions_population.shp") # save the plot we just named, and save in the specified folder
+```
+
+## Visualizing spatial data
+```{r}
+ggplot(pop_region_3338) + # take our dataframe to plot the following
+    geom_sf(aes(fill = total_pop)) + # fill the map using the population column
+    labs(fill = "Total Population") + # name the legend
+    scale_fill_continuous(low = "khaki", # fill by population continuous, and define our low and high amount colors
+                          high =  "firebrick",
+                          labels = comma) +
+    theme_bw()
+```
+
+Reading in a second dataset to add to the plots (like layering?)
+```{r}
+rivers_3338 <- read_sf("data/ak_rivers_simp.shp")
+st_crs(rivers_3338)
+```
+
+layering plots
+```{r}
+ggplot() +
+    geom_sf(data = pop_region_3338, # first dataset
+            aes(fill = total_pop)) +
+    geom_sf(data = pop_3338, 
+            size = 0.5) +
+    geom_sf(data = rivers_3338, # new rivers dataset
+            aes(linewidth = StrOrder)) +
+    scale_linewidth(range = c(0.05, 0.5), 
+                    guide = "none") +
+    labs(title = "Total Population by Alaska Region",
+         fill = "Total Population") +
+    scale_fill_continuous(low = "khaki",
+                          high =  "firebrick",
+                          labels = comma) +
+    theme_bw() 
+```
+
+adding basemaps 
+```{r}
+ggplot(data = pop_3338) + # calling our pop dataset
+    ggspatial::annotation_map_tile(type = "osm", zoom = 4) + # higher zoom values are more detailed 
+    geom_sf(aes(color = population),
+            fill = NA) +
+    scale_color_continuous(low = "darkkhaki",
+                           high =  "firebrick",
+                           labels = comma)
+```
+
+## Leaflet
+requires an unprojected file
+defining the projection
+```{r}
+epsg3338 <- leaflet::leafletCRS(
+    crsClass = "L.Proj.CRS",
+    code = "EPSG:3338",
+    proj4def =  "+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs",
+    resolutions = 2 ^ (16:7)
+)
+```
+
+transform the regional information into an unprojected dataframe
+```{r}
+st_crs(pop_region_3338) # currently in AK Albers
+
+pop_region_4326 <- pop_region_3338 %>% #retransform our dataframe into the WGS 84
+    st_transform(crs = 4326)
+```
+
+now we can plot the untransformed version in leaflet
+```{r}
+m <- leaflet(options = leafletOptions(crs = epsg3338)) %>%
+    addPolygons(data = pop_region_4326,
+                fillColor = "gray",
+                weight = 1)
+
+m
+```
+
+making the map more interactive
+```{r}
+pal <- colorNumeric(palette = "Reds", domain = pop_region_4326$total_pop)
+
+m <- leaflet(options = leafletOptions(crs = epsg3338)) %>%
+    addPolygons(
+        data = pop_region_4326,
+        fillColor = ~ pal(total_pop),
+        weight = 1,
+        color = "black",
+        fillOpacity = 1,
+        label = ~ region
+    ) %>%
+    addLegend(
+        position = "bottomleft",
+        pal = pal,
+        values = range(pop_region_4326$total_pop),
+        title = "Total Population"
+    )
+
+m
+```
+
+adding the city points
+```{r}
+pal <- colorNumeric(palette = "Reds", domain = pop_region_4326$total_pop)
+
+m <- leaflet(options = leafletOptions(crs = epsg3338)) %>%
+    addPolygons(
+        data = pop_region_4326,
+        fillColor = ~ pal(total_pop),
+        weight = 1,
+        color = "black",
+        fillOpacity = 1
+    ) %>%
+    addCircleMarkers(
+        data = pop_4326,
+        lat = ~ lat,
+        lng = ~ lng,
+        radius = ~ log(population / 500),
+        # arbitrary scaling
+        fillColor = "gray",
+        fillOpacity = 1,
+        weight = 0.25,
+        color = "black",
+        label = ~ paste0(pop_4326$city, ", population ", comma(pop_4326$population))
+    ) %>%
+    addLegend(
+        position = "bottomleft",
+        pal = pal,
+        values = range(pop_region_4326$total_pop),
+        title = "Total Population"
+    )
+
+m
+```
+
+
+
